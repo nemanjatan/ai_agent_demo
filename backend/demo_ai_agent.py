@@ -238,6 +238,18 @@ Question: {input}
 Thought:{agent_scratchpad}
 """)
 
+# Create a callback to capture all agent output including thoughts
+class AgentOutputCapture:
+    def __init__(self):
+        self.full_output = []
+    
+    def capture(self, text):
+        """Capture text output from the agent"""
+        self.full_output.append(text)
+    
+    def get_full_output(self):
+        return "\n".join(self.full_output)
+
 agent = create_react_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(
     agent=agent,
@@ -297,6 +309,8 @@ def run_demo(url="https://example.com", verbose=False):
     
     STEP 3: Generate 5-7 DETAILED user behavior patterns
     
+    CRITICAL: In your Final Answer, you MUST include ALL the patterns you generate, formatted exactly as shown below. Do NOT just say "patterns have been created" - you MUST include the complete patterns in your Final Answer.
+    
     REQUIREMENTS FOR EACH PATTERN:
     1. Title: Descriptive name (e.g., "Exploring Office Space Listings in Manhattan")
     2. USE THE ACTUAL URLs from sample_links array - don't make up generic names like "Listings"
@@ -329,19 +343,20 @@ def run_demo(url="https://example.com", verbose=False):
     - Expected outcome: User browses through available office space listings
     
     Now generate patterns using the ACTUAL data you extract from the page!
+    
+    REMEMBER: Your Final Answer MUST include all patterns in the format shown above. Do not just summarize - include the complete patterns with all steps and expected outcomes.
     """
     
     try:
-        # Use agent_executor instead of deprecated agent
+        # Use invoke to get structured result with intermediate steps
         result = agent_executor.invoke({"input": task})
         result_text = result.get("output", str(result))
         intermediate_steps = result.get("intermediate_steps", [])
         
-        # Build full execution trace including intermediate steps
-        # This includes all tool calls and observations, which contain the JSON from analyze_page
+        # Build full execution trace
         full_trace = []
         
-        # Add intermediate steps to the trace
+        # Add intermediate steps to the trace (tool calls and observations)
         for step in intermediate_steps:
             action, observation = step
             # Handle different action object formats
@@ -351,11 +366,25 @@ def run_demo(url="https://example.com", verbose=False):
             full_trace.append(f"Action Input: {tool_input}")
             full_trace.append(f"Observation: {observation}")
         
-        # Add final answer
-        full_trace.append(f"\nFinal Answer: {result_text}")
+        # The patterns should be in result_text, but if it's short, they might be in the agent's reasoning
+        # which is only visible in verbose mode. Since we can't easily capture that, we need to ensure
+        # the agent includes patterns in the final answer. But for now, let's include the full result_text
+        # and also check if there's more in the result dict
+        
+        # Build final response
+        full_response_parts = []
+        full_response_parts.extend(full_trace)
+        
+        # Add final answer - this should contain the patterns if the agent generated them properly
+        full_response_parts.append(f"\nFinal Answer: {result_text}")
+        
+        # Also include the full result dict as string in case patterns are in there
+        result_dict_str = str(result)
+        if len(result_dict_str) > len(result_text) + 100:  # If significantly longer, might have more info
+            full_response_parts.append(f"\nFull Result Structure: {result_dict_str}")
         
         # Combine into full response text
-        full_response = "\n".join(full_trace)
+        full_response = "\n".join(full_response_parts)
         
         if verbose:
             print()
@@ -365,11 +394,16 @@ def run_demo(url="https://example.com", verbose=False):
             print(full_response)
             print()
             print("=" * 70)
-            print("FINAL RESULT:")
+            print("FINAL RESULT TEXT:")
             print("=" * 70)
             print(result_text)
+            print()
+            print("=" * 70)
+            print("RESULT DICT:")
+            print("=" * 70)
+            print(result)
         
-        # Return full trace so backend can extract JSON from observations
+        # Return full trace so backend can extract JSON from observations and patterns
         return full_response
     except Exception as e:
         error_msg = f"Error: {str(e)}"

@@ -254,15 +254,23 @@ async def analyze_website(request: AnalyzeRequest):
         # Strategy 1: Match pattern blocks with **Pattern X: Title** format
         # Updated regex to be more flexible with whitespace and handle multiline
         # Try multiple variations of the pattern format
-        pattern_regex = r'\*\*Pattern\s+(\d+):\s*([^*\n]+?)\*\*(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|$)'
+        # Patterns can appear anywhere in the response, even mixed with JSON observations
+        pattern_regex = r'\*\*Pattern\s+(\d+):\s*([^*\n]+?)\*\*(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|Observation:|Action:|$)'
         pattern_matches = re.findall(pattern_regex, result, re.DOTALL | re.MULTILINE)
         logger.info(f"Found {len(pattern_matches)} patterns with **Pattern format")
         
         # If no matches, try without requiring closing ** (in case formatting is inconsistent)
         if not pattern_matches:
-            pattern_regex2 = r'\*\*Pattern\s+(\d+):\s*([^\n*]+?)(?:\*\*|\n)(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|$)'
+            pattern_regex2 = r'\*\*Pattern\s+(\d+):\s*([^\n*]+?)(?:\*\*|\n)(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|Observation:|Action:|$)'
             pattern_matches = re.findall(pattern_regex2, result, re.DOTALL | re.MULTILINE)
             logger.info(f"Found {len(pattern_matches)} patterns with flexible **Pattern format")
+        
+        # If still no matches, try a more aggressive pattern that looks for Pattern anywhere
+        if not pattern_matches:
+            # Look for Pattern X: followed by content, even if mixed with other text
+            pattern_regex3 = r'(?:^|\n)\*\*?Pattern\s+(\d+):\s*([^\n*]+?)(?:\*\*|\n)(.*?)(?=(?:^|\n)\*\*?Pattern\s+\d+:|Final Answer:|$)'
+            pattern_matches = re.findall(pattern_regex3, result, re.DOTALL | re.MULTILINE)
+            logger.info(f"Found {len(pattern_matches)} patterns with aggressive **Pattern format")
         
         for num_str, title, content in pattern_matches:
             # Extract steps from content (lines starting with -)
