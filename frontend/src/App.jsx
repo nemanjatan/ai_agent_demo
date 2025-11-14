@@ -76,12 +76,31 @@ function App() {
             <div className="analysis-info">
               <h3>📊 Page Analysis</h3>
               <ul>
-                <li><strong>Title:</strong> {result.analysis.title || 'Not extracted'}</li>
-                <li><strong>Links Found:</strong> {result.analysis.links_count || 'Not extracted'}</li>
-                <li><strong>Has Navigation:</strong> {result.analysis.has_navigation !== undefined ? (result.analysis.has_navigation ? 'Yes' : 'No') : 'Not extracted'}</li>
-                <li><strong>Has Main Content:</strong> {result.analysis.has_main_content !== undefined ? (result.analysis.has_main_content ? 'Yes' : 'No') : 'Not extracted'}</li>
-                <li><strong>Page Type:</strong> {result.analysis.page_type || 'Not extracted'}</li>
+                <li><strong>Title:</strong> {result.analysis.title || result.analysis.Title || 'Not extracted'}</li>
+                <li><strong>Links Found:</strong> {result.analysis.links_count || result.analysis.linksCount || result.analysis['links_count'] || 'Not extracted'}</li>
+                <li><strong>Has Navigation:</strong> {
+                  result.analysis.has_navigation !== undefined ? (result.analysis.has_navigation ? 'Yes' : 'No') :
+                  result.analysis.hasNavigation !== undefined ? (result.analysis.hasNavigation ? 'Yes' : 'No') :
+                  result.analysis['has_navigation'] !== undefined ? (result.analysis['has_navigation'] ? 'Yes' : 'No') :
+                  'Not extracted'
+                }</li>
+                <li><strong>Has Main Content:</strong> {
+                  result.analysis.has_main_content !== undefined ? (result.analysis.has_main_content ? 'Yes' : 'No') :
+                  result.analysis.hasMainContent !== undefined ? (result.analysis.hasMainContent ? 'Yes' : 'No') :
+                  result.analysis['has_main_content'] !== undefined ? (result.analysis['has_main_content'] ? 'Yes' : 'No') :
+                  'Not extracted'
+                }</li>
+                <li><strong>Page Type:</strong> {result.analysis.page_type || result.analysis.pageType || result.analysis['page_type'] || 'Not extracted'}</li>
               </ul>
+              {/* Debug info - remove in production */}
+              {process.env.NODE_ENV === 'development' && (
+                <details style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#666' }}>
+                  <summary>Debug: Raw analysis data</summary>
+                  <pre style={{ background: '#f5f5f5', padding: '0.5rem', borderRadius: '4px', overflow: 'auto' }}>
+                    {JSON.stringify(result.analysis, null, 2)}
+                  </pre>
+                </details>
+              )}
             </div>
           )}
 
