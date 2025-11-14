@@ -159,29 +159,43 @@ async def analyze_website(request: AnalyzeRequest):
                 except json.JSONDecodeError as e:
                     logger.warning(f"JSON decode error: {e}, trying fallback")
         
-        # If JSON parsing didn't work, fallback to regex
+        # ALWAYS try regex fallback as backup - it's more reliable for embedded JSON
+        # This ensures we extract data even if full JSON parsing fails
         if "title" not in analysis_data or not analysis_data.get("title"):
-            # Fallback to regex extraction if JSON parsing fails
-            logger.warning("Failed to parse JSON, using regex fallback")
-            title_match = re.search(r'"title":\s*"([^"]+)"', result)
-            if title_match:
-                analysis_data["title"] = title_match.group(1)
+            logger.info("Using regex extraction for analysis data")
             
+            # Extract title - handle escaped quotes and multi-line titles
+            title_match = re.search(r'"title":\s*"((?:[^"\\]|\\.)*)"', result)
+            if title_match:
+                analysis_data["title"] = title_match.group(1).replace('\\"', '"')
+                logger.info(f"Extracted title: {analysis_data['title']}")
+            
+            # Extract links_count
             links_match = re.search(r'"links_count":\s*(\d+)', result)
             if links_match:
                 analysis_data["links_count"] = int(links_match.group(1))
+                logger.info(f"Extracted links_count: {analysis_data['links_count']}")
             
-            nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
+            # Extract has_navigation
+            nav_match = re.search(r'"has_navigation":\s*(true|false)', result, re.IGNORECASE)
             if nav_match:
-                analysis_data["has_navigation"] = nav_match.group(1) == "true"
+                analysis_data["has_navigation"] = nav_match.group(1).lower() == "true"
+                logger.info(f"Extracted has_navigation: {analysis_data['has_navigation']}")
             
-            main_match = re.search(r'"has_main_content":\s*(true|false)', result)
+            # Extract has_main_content
+            main_match = re.search(r'"has_main_content":\s*(true|false)', result, re.IGNORECASE)
             if main_match:
-                analysis_data["has_main_content"] = main_match.group(1) == "true"
+                analysis_data["has_main_content"] = main_match.group(1).lower() == "true"
+                logger.info(f"Extracted has_main_content: {analysis_data['has_main_content']}")
             
+            # Extract page_type
             page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
             if page_type_match:
                 analysis_data["page_type"] = page_type_match.group(1)
+                logger.info(f"Extracted page_type: {analysis_data['page_type']}")
+        
+        # Log final analysis data
+        logger.info(f"Final analysis data: {analysis_data}")
         
         # Extract patterns from the response - look for **Pattern X: Title** format
         patterns = []
