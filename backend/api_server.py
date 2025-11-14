@@ -120,12 +120,13 @@ def health():
     return {"status": "ok"}
 
 
+# App is now ready to be served by uvicorn
+# When Railway runs: uvicorn api_server:app --host 0.0.0.0 --port $PORT
+# The 'app' object will be used
+
 if __name__ == "__main__":
     import uvicorn
     # Railway provides PORT environment variable
     port = int(os.getenv("PORT", 8000))
     logger.info(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
-else:
-    # For Railway/gunicorn deployments
-    logger.info("Application loaded, waiting for server start")
