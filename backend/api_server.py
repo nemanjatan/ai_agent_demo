@@ -9,13 +9,26 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 import sys
+import logging
 
-# Add parent directory to path to import demo_ai_agent
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-from demo_ai_agent import run_demo
-
+# Load environment variables first
 load_dotenv()
+
+# Add current directory to path to import demo_ai_agent
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
+# Import demo_ai_agent - wrap in try/except to catch import errors
+try:
+    from demo_ai_agent import run_demo
+    logger.info("Successfully imported demo_ai_agent")
+except Exception as e:
+    logger.error(f"Failed to import demo_ai_agent: {e}")
+    run_demo = None
 
 app = FastAPI(title="AI Agent Browser Automation API")
 
@@ -63,6 +76,9 @@ async def analyze_website(request: AnalyzeRequest):
     Analyze a website and generate user behavior patterns.
     """
     try:
+        if not run_demo:
+            raise HTTPException(status_code=500, detail="AI agent module not available")
+        
         if not request.url:
             raise HTTPException(status_code=400, detail="URL is required")
         
@@ -70,7 +86,7 @@ async def analyze_website(request: AnalyzeRequest):
         if not request.url.startswith(('http://', 'https://')):
             request.url = 'https://' + request.url
         
-        print(f"Analyzing website: {request.url}")
+        logger.info(f"Analyzing website: {request.url}")
         
         # Run the agent analysis
         result = run_demo(request.url)
@@ -92,7 +108,7 @@ async def analyze_website(request: AnalyzeRequest):
         )
         
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.error(f"Error analyzing website: {str(e)}")
         return AnalyzeResponse(
             success=False,
             error=str(e)
@@ -108,4 +124,8 @@ if __name__ == "__main__":
     import uvicorn
     # Railway provides PORT environment variable
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    logger.info(f"Starting server on port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+else:
+    # For Railway/gunicorn deployments
+    logger.info("Application loaded, waiting for server start")
