@@ -91,23 +91,71 @@ async def analyze_website(request: AnalyzeRequest):
         # Run the agent analysis in a thread pool to avoid blocking
         # (Playwright sync API needs to run outside asyncio context)
         import asyncio
+        import re
+        import json
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, run_demo, request.url)
         
         if not result:
             raise HTTPException(status_code=500, detail="Failed to analyze website")
         
-        # Parse the result
-        # The result is a string, we need to extract structured data
-        # For now, return the full response
+        # Try to extract structured data from the result
+        analysis_data = {
+            "url": request.url,
+            "status": "analyzed"
+        }
+        
+        # Try to extract title from result
+        title_match = re.search(r'"title":\s*"([^"]+)"', result)
+        if title_match:
+            analysis_data["title"] = title_match.group(1)
+        
+        # Try to extract links count
+        links_match = re.search(r'"links_count":\s*(\d+)', result)
+        if links_match:
+            analysis_data["links_count"] = int(links_match.group(1))
+        
+        # Try to extract has_navigation
+        nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
+        if nav_match:
+            analysis_data["has_navigation"] = nav_match.group(1) == "true"
+        
+        # Try to extract has_main_content
+        main_match = re.search(r'"has_main_content":\s*(true|false)', result)
+        if main_match:
+            analysis_data["has_main_content"] = main_match.group(1) == "true"
+        
+        # Try to extract page_type
+        page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
+        if page_type_match:
+            analysis_data["page_type"] = page_type_match.group(1)
+        
+        # Extract patterns from the response
+        patterns = []
+        pattern_blocks = re.findall(r'\*\*Pattern \d+:([^*]+)\*\*', result, re.DOTALL)
+        for i, block in enumerate(pattern_blocks, 1):
+            if block.strip():
+                patterns.append({
+                    "number": i,
+                    "title": block.split('\n')[0].strip() if block.split('\n') else f"Pattern {i}",
+                    "description": block.strip()[:500]  # First 500 chars
+                })
+        
+        # If no patterns found in that format, try numbered list format
+        if not patterns:
+            numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*]+)\*\*?', result)
+            for num, title in numbered_patterns[:7]:
+                patterns.append({
+                    "number": int(num),
+                    "title": title.strip(),
+                    "description": ""
+                })
+        
         return AnalyzeResponse(
             success=True,
             full_response=result,
-            analysis={
-                "url": request.url,
-                "status": "analyzed"
-            },
-            patterns=[]  # Can be parsed from result if needed
+            analysis=analysis_data,
+            patterns=patterns
         )
         
     except Exception as e:

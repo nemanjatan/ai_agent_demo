@@ -281,19 +281,38 @@ def run_demo(url="https://example.com", verbose=False):
         print()
     
     task = f"""
-    Browse the website {url} and analyze its structure.
+    You are analyzing the website: {url}
     
-    Please:
-    1. Load the page and analyze its structure
-    2. Extract key information (title, links count, navigation elements)
-    3. Based on your analysis, generate 3-5 realistic user behavior patterns
+    Your task:
+    1. Load the page using load_page tool
+    2. Analyze the page structure using analyze_page tool to get:
+       - Page title
+       - Number of links
+       - Navigation elements
+       - Main content areas
+       - Sample links and buttons
+    3. Based on the ACTUAL page structure you analyzed, generate 5-7 highly detailed and realistic user behavior patterns
     
-    Each pattern should include:
-    - Navigation sequence (e.g., "Click on a link → Wait 2 seconds → Scroll down")
-    - Timing delays (realistic human delays)
-    - Scroll behavior
+    IMPORTANT: Generate patterns based on the REAL data you extracted, not generic patterns.
     
-    Format your response clearly with numbered patterns.
+    Each pattern MUST include:
+    - A descriptive title (e.g., "Browsing Office Listings in Manhattan")
+    - Detailed step-by-step navigation sequence using ACTUAL links/buttons found
+    - Specific CSS selectors or link text from the page
+    - Realistic timing delays (2-5 seconds between actions)
+    - Scroll amounts (200-800 pixels, be specific)
+    - What the user would see/do at each step
+    
+    Example format:
+    **Pattern 1: [Descriptive Title]**
+    - Step 1: Click on "[actual link text from page]" (selector: a[href="actual-url"])
+    - Step 2: Wait 3 seconds
+    - Step 3: Scroll down 500 pixels to view listings
+    - Step 4: Click on "[another actual element]" 
+    - Step 5: Wait 2 seconds, then scroll 300 pixels
+    - Expected outcome: User views [specific content type]
+    
+    Use the ACTUAL links, buttons, and navigation elements you found. Be specific and realistic.
     """
     
     try:
