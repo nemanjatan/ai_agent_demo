@@ -11,5 +11,10 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  preview: {
+    host: true, // Allow all hosts (for Railway deployment)
+    port: process.env.PORT || 4173,
+    strictPort: false
   }
 })
