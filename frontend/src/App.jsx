@@ -88,30 +88,33 @@ function App() {
           {result.patterns && result.patterns.length > 0 && (
             <div className="patterns">
               <h2 style={{ marginBottom: '1rem', color: '#333' }}>
-                🎯 Generated Behavior Patterns
+                🎯 Generated Behavior Patterns ({result.patterns.length})
               </h2>
               {result.patterns.map((pattern, index) => (
                 <div key={index} className="pattern">
                   <h3>Pattern {pattern.number || index + 1}: {pattern.title || `Pattern ${index + 1}`}</h3>
-                  {pattern.description && (
+                  {pattern.steps && pattern.steps.length > 0 ? (
+                    <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
+                      {pattern.steps.map((step, stepIndex) => (
+                        <div key={stepIndex} style={{ marginBottom: '0.5rem', paddingLeft: '1rem' }}>
+                          {step}
+                        </div>
+                      ))}
+                    </div>
+                  ) : pattern.description ? (
                     <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
                       {pattern.description}
                     </div>
-                  )}
-                  {!pattern.description && (
-                    <div className="pattern-sequence">
-                      {JSON.stringify(pattern, null, 2)}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
           )}
 
-          {result.full_response && (
+          {result.full_response && (!result.patterns || result.patterns.length === 0) && (
             <div className="pattern" style={{ marginTop: '2rem' }}>
               <h3>Full Agent Response</h3>
-              <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
+              <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflow: 'auto' }}>
                 {result.full_response}
               </div>
             </div>

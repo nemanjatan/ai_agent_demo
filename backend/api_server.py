@@ -106,13 +106,45 @@ async def analyze_website(request: AnalyzeRequest):
         }
         
         # Try to find and parse the JSON structure from analyze_page output
-        # Look for JSON block that contains "title", "links_count", etc.
-        # Find all JSON-like blocks and try to parse them
-        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
-        json_blocks = re.findall(json_pattern, result, re.DOTALL)
+        # The JSON is embedded in the response, we need to extract it carefully
+        # Find JSON block that contains "title" and "links_count"
         
-        for json_str in json_blocks:
-            if '"title"' in json_str and '"links_count"' in json_str:
+        # Look for JSON-like structure starting with {
+        json_start_match = re.search(r'\{\s*"title"', result)
+        if json_start_match:
+            start_pos = json_start_match.start()
+            # Count braces to find the complete JSON block
+            brace_count = 0
+            in_string = False
+            escape_next = False
+            end_pos = start_pos
+            
+            for i in range(start_pos, len(result)):
+                char = result[i]
+                
+                if escape_next:
+                    escape_next = False
+                    continue
+                
+                if char == '\\':
+                    escape_next = True
+                    continue
+                
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                
+                if not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            end_pos = i + 1
+                            break
+            
+            if end_pos > start_pos:
+                json_str = result[start_pos:end_pos]
                 try:
                     page_info = json.loads(json_str)
                     if "title" in page_info and "links_count" in page_info:
@@ -123,9 +155,9 @@ async def analyze_website(request: AnalyzeRequest):
                             "has_main_content": page_info.get("has_main_content", False),
                             "page_type": page_info.get("page_type", "")
                         })
-                        break  # Found it, stop looking
-                except json.JSONDecodeError:
-                    continue
+                        logger.info(f"Successfully extracted analysis data: {analysis_data}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"JSON decode error: {e}, trying fallback")
         
         # If JSON parsing didn't work, fallback to regex
         if "title" not in analysis_data or not analysis_data.get("title"):
@@ -151,25 +183,33 @@ async def analyze_website(request: AnalyzeRequest):
             if page_type_match:
                 analysis_data["page_type"] = page_type_match.group(1)
         
-        # Extract patterns from the response
+        # Extract patterns from the response - look for **Pattern X: Title** format
         patterns = []
-        pattern_blocks = re.findall(r'\*\*Pattern \d+:([^*]+)\*\*', result, re.DOTALL)
-        for i, block in enumerate(pattern_blocks, 1):
-            if block.strip():
-                patterns.append({
-                    "number": i,
-                    "title": block.split('\n')[0].strip() if block.split('\n') else f"Pattern {i}",
-                    "description": block.strip()[:500]  # First 500 chars
-                })
+        # Match pattern blocks: **Pattern X: Title** followed by steps
+        pattern_regex = r'\*\*Pattern (\d+):\s*([^*]+)\*\*(.*?)(?=\*\*Pattern \d+:|$)'
+        pattern_matches = re.findall(pattern_regex, result, re.DOTALL)
+        
+        for num_str, title, content in pattern_matches:
+            # Extract steps from content (lines starting with -)
+            steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
+            
+            patterns.append({
+                "number": int(num_str),
+                "title": title.strip(),
+                "steps": steps,
+                "description": content.strip()[:1000]  # First 1000 chars for full details
+            })
         
         # If no patterns found in that format, try numbered list format
         if not patterns:
-            numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*]+)\*\*?', result)
-            for num, title in numbered_patterns[:7]:
+            numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*]+)\*\*?(.*?)(?=\d+\.\s+\*\*|$)', result, re.DOTALL)
+            for num, title, content in numbered_patterns[:7]:
+                steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
                 patterns.append({
                     "number": int(num),
                     "title": title.strip(),
-                    "description": ""
+                    "steps": steps,
+                    "description": content.strip()[:1000]
                 })
         
         return AnalyzeResponse(
