@@ -6,7 +6,7 @@ This script demonstrates how an AI agent can browse websites and generate behavi
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain import hub
 import os
