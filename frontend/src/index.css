@@ -168,10 +168,6 @@ body {
   color: #555;
 }
 
-.pattern {
+.patterns .pattern {
   display: none;
-}
-
-.pattern:last-of-type {
-  display: block;
 }
