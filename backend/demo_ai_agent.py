@@ -244,7 +244,8 @@ agent_executor = AgentExecutor(
     tools=tools,
     verbose=True,  # Show agent's thinking process
     max_iterations=10,  # Limit to prevent infinite loops
-    handle_parsing_errors=True
+    handle_parsing_errors=True,
+    return_intermediate_steps=True  # Return intermediate steps to access tool outputs
 )
 
 
@@ -334,15 +335,42 @@ def run_demo(url="https://example.com", verbose=False):
         # Use agent_executor instead of deprecated agent
         result = agent_executor.invoke({"input": task})
         result_text = result.get("output", str(result))
+        intermediate_steps = result.get("intermediate_steps", [])
+        
+        # Build full execution trace including intermediate steps
+        # This includes all tool calls and observations, which contain the JSON from analyze_page
+        full_trace = []
+        
+        # Add intermediate steps to the trace
+        for step in intermediate_steps:
+            action, observation = step
+            # Handle different action object formats
+            tool_name = getattr(action, 'tool', getattr(action, 'tool_name', str(action)))
+            tool_input = getattr(action, 'tool_input', getattr(action, 'input', ''))
+            full_trace.append(f"Action: {tool_name}")
+            full_trace.append(f"Action Input: {tool_input}")
+            full_trace.append(f"Observation: {observation}")
+        
+        # Add final answer
+        full_trace.append(f"\nFinal Answer: {result_text}")
+        
+        # Combine into full response text
+        full_response = "\n".join(full_trace)
         
         if verbose:
+            print()
+            print("=" * 70)
+            print("FULL EXECUTION TRACE:")
+            print("=" * 70)
+            print(full_response)
             print()
             print("=" * 70)
             print("FINAL RESULT:")
             print("=" * 70)
             print(result_text)
         
-        return result_text
+        # Return full trace so backend can extract JSON from observations
+        return full_response
     except Exception as e:
         error_msg = f"Error: {str(e)}"
         if verbose:
