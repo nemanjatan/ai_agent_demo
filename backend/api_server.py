@@ -239,28 +239,77 @@ async def analyze_website(request: AnalyzeRequest):
         # Extract patterns from the response - look for **Pattern X: Title** format
         patterns = []
         logger.info("Attempting to extract patterns from response")
+        logger.info(f"Searching in result of length: {len(result)}")
         
-        # Match pattern blocks: **Pattern X: Title** followed by steps
-        pattern_regex = r'\*\*Pattern (\d+):\s*([^*]+)\*\*(.*?)(?=\*\*Pattern \d+:|$)'
-        pattern_matches = re.findall(pattern_regex, result, re.DOTALL)
+        # Debug: Find all occurrences of "Pattern" in the response
+        pattern_occurrences = [m.start() for m in re.finditer(r'Pattern\s+\d+', result, re.IGNORECASE)]
+        logger.info(f"Found {len(pattern_occurrences)} occurrences of 'Pattern X' in response")
+        if pattern_occurrences:
+            # Show context around first occurrence
+            first_occurrence = pattern_occurrences[0]
+            context_start = max(0, first_occurrence - 50)
+            context_end = min(len(result), first_occurrence + 200)
+            logger.info(f"Context around first pattern: ...{result[context_start:context_end]}...")
+        
+        # Strategy 1: Match pattern blocks with **Pattern X: Title** format
+        # Updated regex to be more flexible with whitespace and handle multiline
+        # Try multiple variations of the pattern format
+        pattern_regex = r'\*\*Pattern\s+(\d+):\s*([^*\n]+?)\*\*(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|$)'
+        pattern_matches = re.findall(pattern_regex, result, re.DOTALL | re.MULTILINE)
         logger.info(f"Found {len(pattern_matches)} patterns with **Pattern format")
+        
+        # If no matches, try without requiring closing ** (in case formatting is inconsistent)
+        if not pattern_matches:
+            pattern_regex2 = r'\*\*Pattern\s+(\d+):\s*([^\n*]+?)(?:\*\*|\n)(.*?)(?=\*\*Pattern\s+\d+:|Final Answer:|Thought:|$)'
+            pattern_matches = re.findall(pattern_regex2, result, re.DOTALL | re.MULTILINE)
+            logger.info(f"Found {len(pattern_matches)} patterns with flexible **Pattern format")
         
         for num_str, title, content in pattern_matches:
             # Extract steps from content (lines starting with -)
             steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
             
+            # Also extract expected outcome if present
+            expected_outcome = None
+            for line in content.split('\n'):
+                if 'Expected outcome' in line or 'expected outcome' in line:
+                    expected_outcome = line.split(':', 1)[-1].strip() if ':' in line else line.strip()
+                    break
+            
             patterns.append({
                 "number": int(num_str),
                 "title": title.strip(),
                 "steps": steps,
+                "expected_outcome": expected_outcome,
                 "description": content.strip()[:1000]  # First 1000 chars for full details
             })
             logger.info(f"✓ Extracted Pattern {num_str}: {title.strip()} ({len(steps)} steps)")
         
-        # If no patterns found in that format, try numbered list format
+        # Strategy 2: If no patterns found, try a more flexible pattern
+        # Look for any **Pattern or Pattern followed by number
+        if not patterns:
+            logger.info("Trying alternative pattern format")
+            alt_pattern_regex = r'(?:Pattern\s+(\d+)|(\d+)\.)\s*:?\s*([^\n]+?)(?:\n|$)(.*?)(?=(?:Pattern\s+\d+|Final Answer|$))'
+            alt_matches = re.findall(alt_pattern_regex, result, re.DOTALL | re.MULTILINE)
+            logger.info(f"Found {len(alt_matches)} patterns with alternative format")
+            
+            for match in alt_matches:
+                num_str = match[0] or match[1]
+                title = match[2]
+                content = match[3]
+                if num_str and title:
+                    steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
+                    patterns.append({
+                        "number": int(num_str),
+                        "title": title.strip(),
+                        "steps": steps,
+                        "description": content.strip()[:1000]
+                    })
+                    logger.info(f"✓ Extracted Pattern {num_str}: {title.strip()} ({len(steps)} steps)")
+        
+        # Strategy 3: Try numbered list format
         if not patterns:
             logger.info("Trying numbered list format for patterns")
-            numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*]+)\*\*?(.*?)(?=\d+\.\s+\*\*|$)', result, re.DOTALL)
+            numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*\n]+)\*\*?(.*?)(?=\d+\.\s+\*\*|Final Answer|$)', result, re.DOTALL)
             logger.info(f"Found {len(numbered_patterns)} patterns with numbered list format")
             for num, title, content in numbered_patterns[:7]:
                 steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
@@ -271,6 +320,25 @@ async def analyze_website(request: AnalyzeRequest):
                     "description": content.strip()[:1000]
                 })
                 logger.info(f"✓ Extracted Pattern {num}: {title.strip()} ({len(steps)} steps)")
+        
+        # Strategy 4: Extract from Final Answer section specifically
+        if not patterns:
+            logger.info("Trying to extract from Final Answer section")
+            final_answer_match = re.search(r'Final Answer:\s*(.*?)(?:\n|$)', result, re.DOTALL)
+            if final_answer_match:
+                final_answer_text = final_answer_match.group(1)
+                # Try to find patterns in the final answer
+                final_patterns = re.findall(r'\*\*Pattern\s+(\d+):\s*([^*\n]+)\*\*(.*?)(?=\*\*Pattern\s+\d+:|$)', final_answer_text, re.DOTALL)
+                logger.info(f"Found {len(final_patterns)} patterns in Final Answer section")
+                for num_str, title, content in final_patterns:
+                    steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
+                    patterns.append({
+                        "number": int(num_str),
+                        "title": title.strip(),
+                        "steps": steps,
+                        "description": content.strip()[:1000]
+                    })
+                    logger.info(f"✓ Extracted Pattern {num_str} from Final Answer: {title.strip()} ({len(steps)} steps)")
         
         logger.info(f"Total patterns extracted: {len(patterns)}")
         

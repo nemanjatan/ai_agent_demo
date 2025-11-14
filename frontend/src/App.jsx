@@ -110,15 +110,52 @@ function App() {
                 🎯 Generated Behavior Patterns ({result.patterns.length})
               </h2>
               {result.patterns.map((pattern, index) => (
-                <div key={index} className="pattern">
-                  <h3>Pattern {pattern.number || index + 1}: {pattern.title || `Pattern ${index + 1}`}</h3>
+                <div key={index} className="pattern" style={{ 
+                  marginBottom: '2rem', 
+                  padding: '1.5rem', 
+                  backgroundColor: '#f9f9f9', 
+                  borderRadius: '8px',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  <h3 style={{ 
+                    marginBottom: '1rem', 
+                    color: '#2c3e50',
+                    fontSize: '1.2rem',
+                    fontWeight: '600'
+                  }}>
+                    Pattern {pattern.number || index + 1}: {pattern.title || `Pattern ${index + 1}`}
+                  </h3>
                   {pattern.steps && pattern.steps.length > 0 ? (
                     <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
-                      {pattern.steps.map((step, stepIndex) => (
-                        <div key={stepIndex} style={{ marginBottom: '0.5rem', paddingLeft: '1rem' }}>
-                          {step}
+                      <div style={{ marginBottom: '1rem' }}>
+                        <strong style={{ color: '#555', display: 'block', marginBottom: '0.5rem' }}>Steps:</strong>
+                        {pattern.steps.map((step, stepIndex) => (
+                          <div key={stepIndex} style={{ 
+                            marginBottom: '0.75rem', 
+                            paddingLeft: '1rem',
+                            padding: '0.5rem',
+                            backgroundColor: '#fff',
+                            borderRadius: '4px',
+                            borderLeft: '3px solid #4a90e2'
+                          }}>
+                            {step}
+                          </div>
+                        ))}
+                      </div>
+                      {pattern.expected_outcome && (
+                        <div style={{ 
+                          marginTop: '1rem',
+                          padding: '0.75rem',
+                          backgroundColor: '#e8f5e9',
+                          borderRadius: '4px',
+                          borderLeft: '3px solid #4caf50'
+                        }}>
+                          <strong style={{ color: '#2e7d32' }}>Expected Outcome:</strong>
+                          <div style={{ marginTop: '0.25rem', color: '#1b5e20' }}>
+                            {pattern.expected_outcome}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
                   ) : pattern.description ? (
                     <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
