@@ -171,3 +171,7 @@ body {
 .pattern {
   display: none;
 }
+
+.pattern:last-of-type {
+  display: block;
+}
