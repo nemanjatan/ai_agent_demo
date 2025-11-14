@@ -207,9 +207,12 @@ async def analyze_website(request: AnalyzeRequest):
         
         # Extract patterns from the response - look for **Pattern X: Title** format
         patterns = []
+        logger.info("Attempting to extract patterns from response")
+        
         # Match pattern blocks: **Pattern X: Title** followed by steps
         pattern_regex = r'\*\*Pattern (\d+):\s*([^*]+)\*\*(.*?)(?=\*\*Pattern \d+:|$)'
         pattern_matches = re.findall(pattern_regex, result, re.DOTALL)
+        logger.info(f"Found {len(pattern_matches)} patterns with **Pattern format")
         
         for num_str, title, content in pattern_matches:
             # Extract steps from content (lines starting with -)
@@ -221,10 +224,13 @@ async def analyze_website(request: AnalyzeRequest):
                 "steps": steps,
                 "description": content.strip()[:1000]  # First 1000 chars for full details
             })
+            logger.info(f"✓ Extracted Pattern {num_str}: {title.strip()} ({len(steps)} steps)")
         
         # If no patterns found in that format, try numbered list format
         if not patterns:
+            logger.info("Trying numbered list format for patterns")
             numbered_patterns = re.findall(r'(\d+)\.\s+\*\*?([^*]+)\*\*?(.*?)(?=\d+\.\s+\*\*|$)', result, re.DOTALL)
+            logger.info(f"Found {len(numbered_patterns)} patterns with numbered list format")
             for num, title, content in numbered_patterns[:7]:
                 steps = [line.strip() for line in content.split('\n') if line.strip().startswith('-')]
                 patterns.append({
@@ -233,6 +239,9 @@ async def analyze_website(request: AnalyzeRequest):
                     "steps": steps,
                     "description": content.strip()[:1000]
                 })
+                logger.info(f"✓ Extracted Pattern {num}: {title.strip()} ({len(steps)} steps)")
+        
+        logger.info(f"Total patterns extracted: {len(patterns)}")
         
         return AnalyzeResponse(
             success=True,
