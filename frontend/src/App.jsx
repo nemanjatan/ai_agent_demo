@@ -130,10 +130,24 @@ function App() {
             </div>
           )}
 
-          {result.full_response && (!result.patterns || result.patterns.length === 0) && (
+          {result.full_response && (
             <div className="pattern" style={{ marginTop: '2rem' }}>
-              <h3>Full Agent Response</h3>
-              <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap', maxHeight: '400px', overflow: 'auto' }}>
+              <h3>📝 Full Agent Response</h3>
+              <div 
+                className="pattern-sequence" 
+                style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  maxHeight: '600px', 
+                  overflow: 'auto',
+                  backgroundColor: '#f9f9f9',
+                  padding: '1rem',
+                  borderRadius: '4px',
+                  border: '1px solid #e0e0e0',
+                  fontFamily: 'monospace',
+                  fontSize: '0.9rem',
+                  lineHeight: '1.5'
+                }}
+              >
                 {result.full_response}
               </div>
             </div>

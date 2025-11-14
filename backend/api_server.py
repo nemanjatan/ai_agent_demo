@@ -109,8 +109,31 @@ async def analyze_website(request: AnalyzeRequest):
         # The JSON is embedded in the response, we need to extract it carefully
         # Find JSON block that contains "title" and "links_count"
         
-        # Look for JSON-like structure starting with {
-        json_start_match = re.search(r'\{\s*"title"', result)
+        logger.info("Attempting to extract JSON analysis data from agent response")
+        logger.info(f"Result length: {len(result)}, First 1000 chars: {result[:1000]}")
+        
+        # Strategy 1: Look for JSON block starting with { and containing "title"
+        # This handles both single-line and multi-line formatted JSON
+        json_extracted = False
+        
+        # Try multiple patterns to find JSON block
+        # Pattern 1: { followed by "title" on same line
+        json_start_match = re.search(r'\{\s*"title"', result, re.MULTILINE)
+        
+        # Pattern 2: { followed by "title" on next line (formatted JSON with indentation)
+        if not json_start_match:
+            json_start_match = re.search(r'\{\s*\n\s*"title"', result, re.MULTILINE)
+        
+        # Pattern 3: Look for JSON after "Observation:" or in code blocks
+        if not json_start_match:
+            # Find any { that might be followed by title (with potential whitespace/newlines)
+            json_start_match = re.search(r'\{\s*[\s\n]*"title"', result, re.MULTILINE | re.DOTALL)
+        
+        # Pattern 4: Look for JSON structure anywhere - be more flexible
+        if not json_start_match:
+            # Just look for any { that contains title somewhere nearby
+            json_start_match = re.search(r'\{[^}]*"title"', result, re.MULTILINE | re.DOTALL)
+        
         if json_start_match:
             start_pos = json_start_match.start()
             # Count braces to find the complete JSON block
@@ -155,52 +178,60 @@ async def analyze_website(request: AnalyzeRequest):
                             "has_main_content": page_info.get("has_main_content", False),
                             "page_type": page_info.get("page_type", "")
                         })
-                        logger.info(f"Successfully extracted analysis data: {analysis_data}")
+                        json_extracted = True
+                        logger.info(f"✓ Successfully extracted JSON block: {analysis_data}")
                 except json.JSONDecodeError as e:
-                    logger.warning(f"JSON decode error: {e}, trying fallback")
+                    logger.warning(f"JSON decode error: {e}, trying regex fallback")
         
-        # ALWAYS try regex extraction - it's more reliable for embedded JSON
-        # Run regardless of whether JSON parsing worked
-        logger.info("Attempting regex extraction for analysis data")
-        logger.info(f"Result length: {len(result)}, First 500 chars: {result[:500]}")
+        # Strategy 2: ALWAYS try regex extraction to fill in any missing fields
+        # This handles cases where JSON is embedded in text or formatted differently
+        # Run regex extraction even if JSON block extraction succeeded, to ensure all fields are captured
+        logger.info("Running regex extraction to ensure all fields are captured")
         
         # Extract title - handle escaped quotes, may span multiple lines in formatted JSON
-        title_pattern = r'"title"\s*:\s*"([^"]+)"'
-        title_match = re.search(title_pattern, result, re.DOTALL)
-        if title_match and ("title" not in analysis_data or not analysis_data.get("title")):
-            title = title_match.group(1).replace('\\"', '"').replace('\\n', ' ').strip()
-            analysis_data["title"] = title
-            logger.info(f"✓ Extracted title: {title[:50]}...")
-        elif title_match:
-            logger.info(f"Title already in analysis_data: {analysis_data.get('title')}")
+        # Match: "title": "value" or "title" : "value" (with spaces)
+        if "title" not in analysis_data or not analysis_data.get("title") or analysis_data.get("title") == "Not extracted":
+            title_pattern = r'"title"\s*:\s*"((?:[^"\\]|\\.)*)"'
+            title_match = re.search(title_pattern, result, re.DOTALL)
+            if title_match:
+                title = title_match.group(1).replace('\\"', '"').replace('\\n', ' ').replace('\\', '').strip()
+                if title and title != 'No title found':
+                    analysis_data["title"] = title
+                    logger.info(f"✓ Extracted title via regex: {title[:50]}...")
         
         # Extract links_count - be more flexible with whitespace
-        links_pattern = r'"links_count"\s*:\s*(\d+)'
-        links_match = re.search(links_pattern, result)
-        if links_match and ("links_count" not in analysis_data or not analysis_data.get("links_count")):
-            analysis_data["links_count"] = int(links_match.group(1))
-            logger.info(f"✓ Extracted links_count: {analysis_data['links_count']}")
+        if "links_count" not in analysis_data or not analysis_data.get("links_count"):
+            links_pattern = r'"links_count"\s*:\s*(\d+)'
+            links_match = re.search(links_pattern, result)
+            if links_match:
+                analysis_data["links_count"] = int(links_match.group(1))
+                logger.info(f"✓ Extracted links_count via regex: {analysis_data['links_count']}")
         
         # Extract has_navigation - handle whitespace variations
-        nav_pattern = r'"has_navigation"\s*:\s*(true|false)'
-        nav_match = re.search(nav_pattern, result, re.IGNORECASE)
-        if nav_match and "has_navigation" not in analysis_data:
-            analysis_data["has_navigation"] = nav_match.group(1).lower() == "true"
-            logger.info(f"✓ Extracted has_navigation: {analysis_data['has_navigation']}")
+        if "has_navigation" not in analysis_data:
+            nav_pattern = r'"has_navigation"\s*:\s*(true|false)'
+            nav_match = re.search(nav_pattern, result, re.IGNORECASE)
+            if nav_match:
+                analysis_data["has_navigation"] = nav_match.group(1).lower() == "true"
+                logger.info(f"✓ Extracted has_navigation via regex: {analysis_data['has_navigation']}")
         
         # Extract has_main_content - handle whitespace variations
-        main_pattern = r'"has_main_content"\s*:\s*(true|false)'
-        main_match = re.search(main_pattern, result, re.IGNORECASE)
-        if main_match and "has_main_content" not in analysis_data:
-            analysis_data["has_main_content"] = main_match.group(1).lower() == "true"
-            logger.info(f"✓ Extracted has_main_content: {analysis_data['has_main_content']}")
+        if "has_main_content" not in analysis_data:
+            main_pattern = r'"has_main_content"\s*:\s*(true|false)'
+            main_match = re.search(main_pattern, result, re.IGNORECASE)
+            if main_match:
+                analysis_data["has_main_content"] = main_match.group(1).lower() == "true"
+                logger.info(f"✓ Extracted has_main_content via regex: {analysis_data['has_main_content']}")
         
         # Extract page_type
-        page_type_pattern = r'"page_type"\s*:\s*"([^"]+)"'
-        page_type_match = re.search(page_type_pattern, result)
-        if page_type_match and ("page_type" not in analysis_data or not analysis_data.get("page_type")):
-            analysis_data["page_type"] = page_type_match.group(1)
-            logger.info(f"✓ Extracted page_type: {analysis_data['page_type']}")
+        if "page_type" not in analysis_data or not analysis_data.get("page_type"):
+            page_type_pattern = r'"page_type"\s*:\s*"((?:[^"\\]|\\.)*)"'
+            page_type_match = re.search(page_type_pattern, result)
+            if page_type_match:
+                page_type = page_type_match.group(1).replace('\\"', '"').replace('\\n', ' ').replace('\\', '').strip()
+                if page_type:
+                    analysis_data["page_type"] = page_type
+                    logger.info(f"✓ Extracted page_type via regex: {analysis_data['page_type']}")
         
         # Log final analysis data
         logger.info(f"Final analysis data: {analysis_data}")
