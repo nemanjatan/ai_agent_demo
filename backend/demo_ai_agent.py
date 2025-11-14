@@ -159,26 +159,41 @@ def analyze_page(url):
 # ========================================
 # Create Tools for Agent
 # ========================================
+# Wrap Playwright sync functions to run in thread pool (needed for async FastAPI context)
+
+from concurrent.futures import ThreadPoolExecutor
+import functools
+
+# Create a thread pool executor for Playwright operations
+playwright_executor = ThreadPoolExecutor(max_workers=2)
+
+def run_in_thread(func):
+    """Decorator to run sync Playwright functions in a thread pool."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        future = playwright_executor.submit(func, *args, **kwargs)
+        return future.result(timeout=60)  # 60 second timeout
+    return wrapper
 
 tools = [
     Tool(
         name="load_page",
-        func=load_page,
+        func=run_in_thread(load_page),
         description="Load a webpage and get basic information. Input: URL as string (e.g., 'https://example.com'). Returns: confirmation with page title and HTML length."
     ),
     Tool(
         name="click_element",
-        func=click_element,
+        func=run_in_thread(click_element),
         description="Click an element on a page. Input: 'selector|url' (e.g., 'a.article-link|https://example.com'). Use CSS selectors. Returns: confirmation message."
     ),
     Tool(
         name="scroll_page",
-        func=scroll_page,
+        func=run_in_thread(scroll_page),
         description="Scroll the page down. Input: 'url|pixels' (e.g., 'https://example.com|500'). Returns: confirmation."
     ),
     Tool(
         name="analyze_page",
-        func=analyze_page,
+        func=run_in_thread(analyze_page),
         description="Analyze page structure and extract key information like links, buttons, navigation, content areas. Input: URL as string. Returns: JSON with structure data including title, links count, sample links/buttons, navigation presence, main content presence."
     ),
 ]

@@ -88,8 +88,11 @@ async def analyze_website(request: AnalyzeRequest):
         
         logger.info(f"Analyzing website: {request.url}")
         
-        # Run the agent analysis
-        result = run_demo(request.url)
+        # Run the agent analysis in a thread pool to avoid blocking
+        # (Playwright sync API needs to run outside asyncio context)
+        import asyncio
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, run_demo, request.url)
         
         if not result:
             raise HTTPException(status_code=500, detail="Failed to analyze website")
