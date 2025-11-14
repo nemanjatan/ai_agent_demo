@@ -1,8 +1,8 @@
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
 
 [deploy]
-startCommand = "python api_server.py"
+# startCommand is defined in Dockerfile CMD
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
