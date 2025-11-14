@@ -107,7 +107,7 @@ function App() {
           {result.patterns && result.patterns.length > 0 && (
             <div className="patterns">
               <h2 style={{ marginBottom: '1rem', color: '#333' }}>
-                🎯 Generated Behavior Patterns ({result.patterns.length})
+                🎯 Generated Behavior Patterns
               </h2>
               {result.patterns.map((pattern, index) => (
                 <div key={index} className="pattern" style={{ 
