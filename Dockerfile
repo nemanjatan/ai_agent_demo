@@ -62,6 +62,10 @@ COPY backend/ /app/
 # Expose port (Railway sets PORT env var)
 EXPOSE 8000
 
-# Start the application using uvicorn directly
+# Create startup script that handles PORT from environment
+RUN echo '#!/bin/bash\nuvicorn api_server:app --host 0.0.0.0 --port ${PORT:-8000}' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+# Start the application
 # Railway sets PORT env var automatically
-CMD uvicorn api_server:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["/bin/bash", "/app/start.sh"]
