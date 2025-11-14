@@ -281,38 +281,53 @@ def run_demo(url="https://example.com", verbose=False):
         print()
     
     task = f"""
-    You are analyzing the website: {url}
+    Analyze the website: {url}
     
-    Your task:
-    1. Load the page using load_page tool
-    2. Analyze the page structure using analyze_page tool to get:
-       - Page title
-       - Number of links
-       - Navigation elements
-       - Main content areas
-       - Sample links and buttons
-    3. Based on the ACTUAL page structure you analyzed, generate 5-7 highly detailed and realistic user behavior patterns
+    STEP 1: Load the page using load_page tool
+    STEP 2: Analyze the page structure using analyze_page tool
     
-    IMPORTANT: Generate patterns based on the REAL data you extracted, not generic patterns.
+    CRITICAL: The analyze_page tool will return a JSON with:
+    - title: The page title
+    - links_count: Number of links found
+    - sample_links: Array of actual URLs found on the page (USE THESE!)
+    - sample_buttons: Array of actual button text found (USE THESE!)
+    - has_navigation: Whether navigation exists
+    - has_main_content: Whether main content exists
     
-    Each pattern MUST include:
-    - A descriptive title (e.g., "Browsing Office Listings in Manhattan")
-    - Detailed step-by-step navigation sequence using ACTUAL links/buttons found
-    - Specific CSS selectors or link text from the page
-    - Realistic timing delays (2-5 seconds between actions)
-    - Scroll amounts (200-800 pixels, be specific)
-    - What the user would see/do at each step
+    STEP 3: Generate 5-7 DETAILED user behavior patterns
     
-    Example format:
-    **Pattern 1: [Descriptive Title]**
-    - Step 1: Click on "[actual link text from page]" (selector: a[href="actual-url"])
-    - Step 2: Wait 3 seconds
-    - Step 3: Scroll down 500 pixels to view listings
-    - Step 4: Click on "[another actual element]" 
-    - Step 5: Wait 2 seconds, then scroll 300 pixels
-    - Expected outcome: User views [specific content type]
+    REQUIREMENTS FOR EACH PATTERN:
+    1. Title: Descriptive name (e.g., "Exploring Office Space Listings in Manhattan")
+    2. USE THE ACTUAL URLs from sample_links array - don't make up generic names like "Listings"
+    3. USE THE ACTUAL button text from sample_buttons array
+    4. Format each step clearly:
+       - Step 1: Navigate to "[full URL from sample_links]" (e.g., "https://www.metro-manhattan.com/commercial-space/office-space/")
+       - Step 2: Wait 3 seconds (realistic human delay)
+       - Step 3: Scroll down 500 pixels (specific amount)
+       - Step 4: Click on button "[exact text from sample_buttons]" (e.g., "Office Space")
+       - Step 5: Wait 2 seconds
+       - Step 6: Scroll down 400 pixels to view more content
+       - Expected outcome: [What user sees/does]
     
-    Use the ACTUAL links, buttons, and navigation elements you found. Be specific and realistic.
+    IMPORTANT RULES:
+    - NEVER use generic placeholders like "Listings", "Contact Us" - use ACTUAL URLs and text from the analysis
+    - Include FULL URLs from sample_links in your patterns
+    - Include EXACT button text from sample_buttons
+    - Be very specific about scroll amounts (200, 300, 500, 800 pixels)
+    - Include realistic delays (2-5 seconds between actions)
+    - Make patterns site-specific, not generic templates
+    
+    Example of GOOD pattern:
+    **Pattern 1: Browsing Office Space Listings**
+    - Step 1: Navigate to "https://www.metro-manhattan.com/commercial-space/office-space/" (from sample_links)
+    - Step 2: Wait 3 seconds for page to load
+    - Step 3: Scroll down 600 pixels to view multiple listings
+    - Step 4: Click on button "Office Space" (from sample_buttons)
+    - Step 5: Wait 2 seconds
+    - Step 6: Scroll down 400 pixels to see more office spaces
+    - Expected outcome: User browses through available office space listings
+    
+    Now generate patterns using the ACTUAL data you extract from the page!
     """
     
     try:

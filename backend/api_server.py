@@ -105,30 +105,52 @@ async def analyze_website(request: AnalyzeRequest):
             "status": "analyzed"
         }
         
-        # Try to extract title from result
-        title_match = re.search(r'"title":\s*"([^"]+)"', result)
-        if title_match:
-            analysis_data["title"] = title_match.group(1)
+        # Try to find and parse the JSON structure from analyze_page output
+        # Look for JSON block that contains "title", "links_count", etc.
+        # Find all JSON-like blocks and try to parse them
+        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        json_blocks = re.findall(json_pattern, result, re.DOTALL)
         
-        # Try to extract links count
-        links_match = re.search(r'"links_count":\s*(\d+)', result)
-        if links_match:
-            analysis_data["links_count"] = int(links_match.group(1))
+        for json_str in json_blocks:
+            if '"title"' in json_str and '"links_count"' in json_str:
+                try:
+                    page_info = json.loads(json_str)
+                    if "title" in page_info and "links_count" in page_info:
+                        analysis_data.update({
+                            "title": page_info.get("title", ""),
+                            "links_count": page_info.get("links_count", 0),
+                            "has_navigation": page_info.get("has_navigation", False),
+                            "has_main_content": page_info.get("has_main_content", False),
+                            "page_type": page_info.get("page_type", "")
+                        })
+                        break  # Found it, stop looking
+                except json.JSONDecodeError:
+                    continue
         
-        # Try to extract has_navigation
-        nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
-        if nav_match:
-            analysis_data["has_navigation"] = nav_match.group(1) == "true"
-        
-        # Try to extract has_main_content
-        main_match = re.search(r'"has_main_content":\s*(true|false)', result)
-        if main_match:
-            analysis_data["has_main_content"] = main_match.group(1) == "true"
-        
-        # Try to extract page_type
-        page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
-        if page_type_match:
-            analysis_data["page_type"] = page_type_match.group(1)
+        # If JSON parsing didn't work, fallback to regex
+        if "title" not in analysis_data or not analysis_data.get("title"):
+            try:
+                # Fallback to regex extraction if JSON parsing fails
+                logger.warning("Failed to parse JSON, using regex fallback")
+                title_match = re.search(r'"title":\s*"([^"]+)"', result)
+                if title_match:
+                    analysis_data["title"] = title_match.group(1)
+                
+                links_match = re.search(r'"links_count":\s*(\d+)', result)
+                if links_match:
+                    analysis_data["links_count"] = int(links_match.group(1))
+                
+                nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
+                if nav_match:
+                    analysis_data["has_navigation"] = nav_match.group(1) == "true"
+                
+                main_match = re.search(r'"has_main_content":\s*(true|false)', result)
+                if main_match:
+                    analysis_data["has_main_content"] = main_match.group(1) == "true"
+                
+                page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
+                if page_type_match:
+                    analysis_data["page_type"] = page_type_match.group(1)
         
         # Extract patterns from the response
         patterns = []
