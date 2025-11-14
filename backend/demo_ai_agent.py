@@ -5,9 +5,10 @@ This script demonstrates how an AI agent can browse websites and generate behavi
 
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
-from langchain.agents import initialize_agent, AgentType
 from langchain_openai import ChatOpenAI
 from langchain.tools import Tool
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain import hub
 import os
 from dotenv import load_dotenv
 import json
@@ -180,10 +181,40 @@ llm = ChatOpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
 
-agent = initialize_agent(
-    tools,
-    llm,
-    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+# Use newer LangChain API - create ReAct agent
+try:
+    # Try to pull the react prompt from hub
+    prompt = hub.pull("hwchase17/react")
+except Exception:
+    # Fallback: use a simple prompt template
+    from langchain.prompts import PromptTemplate
+    prompt = PromptTemplate.from_template("""
+You are a helpful assistant that can browse websites and analyze their structure.
+
+You have access to the following tools:
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+Thought:{agent_scratchpad}
+""")
+
+agent = create_react_agent(llm, tools, prompt)
+agent_executor = AgentExecutor(
+    agent=agent,
+    tools=tools,
     verbose=True,  # Show agent's thinking process
     max_iterations=10,  # Limit to prevent infinite loops
     handle_parsing_errors=True
@@ -239,8 +270,8 @@ def run_demo(url="https://example.com", verbose=False):
     """
     
     try:
-        # Use invoke instead of deprecated run
-        result = agent.invoke({"input": task})
+        # Use agent_executor instead of deprecated agent
+        result = agent_executor.invoke({"input": task})
         result_text = result.get("output", str(result))
         
         if verbose:
