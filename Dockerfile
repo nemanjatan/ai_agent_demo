@@ -57,8 +57,10 @@ RUN playwright install chromium
 # Copy backend code
 COPY backend/ /app/
 
+# Set working directory is already /app, so api_server.py is directly accessible
+
 # Expose port (Railway sets PORT env var)
 EXPOSE 8000
 
-# Start the application
-CMD ["python", "api_server.py"]
+# Start the application (no cd needed, we're already in /app)
+CMD python api_server.py

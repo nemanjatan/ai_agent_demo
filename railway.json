@@ -5,7 +5,7 @@
     "buildCommand": "pip3 install -r backend/requirements.txt && playwright install chromium"
   },
   "deploy": {
-    "startCommand": "cd backend && python3 api_server.py",
+    "startCommand": "python api_server.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
