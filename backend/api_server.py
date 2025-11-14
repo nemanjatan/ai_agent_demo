@@ -129,28 +129,27 @@ async def analyze_website(request: AnalyzeRequest):
         
         # If JSON parsing didn't work, fallback to regex
         if "title" not in analysis_data or not analysis_data.get("title"):
-            try:
-                # Fallback to regex extraction if JSON parsing fails
-                logger.warning("Failed to parse JSON, using regex fallback")
-                title_match = re.search(r'"title":\s*"([^"]+)"', result)
-                if title_match:
-                    analysis_data["title"] = title_match.group(1)
-                
-                links_match = re.search(r'"links_count":\s*(\d+)', result)
-                if links_match:
-                    analysis_data["links_count"] = int(links_match.group(1))
-                
-                nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
-                if nav_match:
-                    analysis_data["has_navigation"] = nav_match.group(1) == "true"
-                
-                main_match = re.search(r'"has_main_content":\s*(true|false)', result)
-                if main_match:
-                    analysis_data["has_main_content"] = main_match.group(1) == "true"
-                
-                page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
-                if page_type_match:
-                    analysis_data["page_type"] = page_type_match.group(1)
+            # Fallback to regex extraction if JSON parsing fails
+            logger.warning("Failed to parse JSON, using regex fallback")
+            title_match = re.search(r'"title":\s*"([^"]+)"', result)
+            if title_match:
+                analysis_data["title"] = title_match.group(1)
+            
+            links_match = re.search(r'"links_count":\s*(\d+)', result)
+            if links_match:
+                analysis_data["links_count"] = int(links_match.group(1))
+            
+            nav_match = re.search(r'"has_navigation":\s*(true|false)', result)
+            if nav_match:
+                analysis_data["has_navigation"] = nav_match.group(1) == "true"
+            
+            main_match = re.search(r'"has_main_content":\s*(true|false)', result)
+            if main_match:
+                analysis_data["has_main_content"] = main_match.group(1) == "true"
+            
+            page_type_match = re.search(r'"page_type":\s*"([^"]+)"', result)
+            if page_type_match:
+                analysis_data["page_type"] = page_type_match.group(1)
         
         # Extract patterns from the response
         patterns = []
