@@ -7,12 +7,24 @@ from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import Tool
-from langchain.agents import AgentExecutor, create_react_agent
 from langchain import hub
 import os
 from dotenv import load_dotenv
 import json
 import time
+
+# Import AgentExecutor and create_react_agent with fallback for different LangChain versions
+try:
+    from langchain.agents import AgentExecutor, create_react_agent
+except ImportError:
+    try:
+        # Try newer import paths for LangChain 0.3+
+        from langchain.agents.agent import AgentExecutor
+        from langchain.agents.react.agent import create_react_agent
+    except ImportError:
+        # Final fallback
+        from langchain.agents.agent import AgentExecutor
+        from langchain.agents import create_react_agent
 
 load_dotenv()
 
