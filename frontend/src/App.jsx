@@ -76,11 +76,11 @@ function App() {
             <div className="analysis-info">
               <h3>📊 Page Analysis</h3>
               <ul>
-                <li><strong>Title:</strong> {result.analysis.title}</li>
-                <li><strong>Links Found:</strong> {result.analysis.links_count}</li>
-                <li><strong>Has Navigation:</strong> {result.analysis.has_navigation ? 'Yes' : 'No'}</li>
-                <li><strong>Has Main Content:</strong> {result.analysis.has_main_content ? 'Yes' : 'No'}</li>
-                <li><strong>Page Type:</strong> {result.analysis.page_type}</li>
+                <li><strong>Title:</strong> {result.analysis.title || 'Not extracted'}</li>
+                <li><strong>Links Found:</strong> {result.analysis.links_count || 'Not extracted'}</li>
+                <li><strong>Has Navigation:</strong> {result.analysis.has_navigation !== undefined ? (result.analysis.has_navigation ? 'Yes' : 'No') : 'Not extracted'}</li>
+                <li><strong>Has Main Content:</strong> {result.analysis.has_main_content !== undefined ? (result.analysis.has_main_content ? 'Yes' : 'No') : 'Not extracted'}</li>
+                <li><strong>Page Type:</strong> {result.analysis.page_type || 'Not extracted'}</li>
               </ul>
             </div>
           )}
@@ -92,14 +92,16 @@ function App() {
               </h2>
               {result.patterns.map((pattern, index) => (
                 <div key={index} className="pattern">
-                  <h3>Pattern {index + 1}: {pattern.title || `Pattern ${index + 1}`}</h3>
-                  <div className="pattern-sequence">
-                    {pattern.sequence || pattern.description || JSON.stringify(pattern)}
-                  </div>
-                  {pattern.timing && (
-                    <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: '#666' }}>
-                      <strong>Timing:</strong> {pattern.timing}
-                    </p>
+                  <h3>Pattern {pattern.number || index + 1}: {pattern.title || `Pattern ${index + 1}`}</h3>
+                  {pattern.description && (
+                    <div className="pattern-sequence" style={{ whiteSpace: 'pre-wrap' }}>
+                      {pattern.description}
+                    </div>
+                  )}
+                  {!pattern.description && (
+                    <div className="pattern-sequence">
+                      {JSON.stringify(pattern, null, 2)}
+                    </div>
                   )}
                 </div>
               ))}
